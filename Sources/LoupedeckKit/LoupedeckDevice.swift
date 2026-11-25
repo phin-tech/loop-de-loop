@@ -119,13 +119,15 @@ public final class LoupedeckDevice: @unchecked Sendable {
         var payload = LoupedeckModel.displayID
         for v in [x, y, width, height] { payload += [UInt8(v >> 8 & 0xff), UInt8(v & 0xff)] }
         payload += rgb565
-        try await send(.framebuffer, payload)
+        // Firmware 0.2.5 acks every framebuffer write within milliseconds; a missing ack
+        // means the device has wedged, so surface it (LoupedeckError.timeout) for recovery.
+        _ = try await request(.framebuffer, payload, timeout: Self.drawAckTimeout)
         if refresh { try await self.refresh() }
     }
 
     /// Push the framebuffer to the panel.
     public func refresh() async throws {
-        try await send(.draw, LoupedeckModel.displayID)
+        _ = try await request(.draw, LoupedeckModel.displayID, timeout: Self.drawAckTimeout)
     }
 
     public func drawKey(_ index: Int, image: CGImage, refresh: Bool = true) async throws {
@@ -173,6 +175,9 @@ public final class LoupedeckDevice: @unchecked Sendable {
     public func debugWriteRaw(_ bytes: [UInt8]) throws { try port.write(bytes) }
 
     // MARK: - Transactions
+
+    /// How long to wait for a draw ack before treating the device as wedged.
+    public static let drawAckTimeout: TimeInterval = 1
 
     /// Send a command and wait for the device to acknowledge it. Missing acks are
     /// tolerated (some firmware versions don't ack every command).
