@@ -1,9 +1,13 @@
+import Foundation
+
 // The serial firmware wraps every message in a (binary, masked-with-zeros)
 // WebSocket frame, after an HTTP-style "upgrade" handshake.
 
 enum Framing {
     static let upgradeRequest = Array("GET /index.html\nHTTP/1.1\nConnection: Upgrade\nUpgrade: websocket\nSec-WebSocket-Key: 123abc\n\n".utf8)
     static let upgradeResponsePrefix = Array("HTTP/1.1".utf8)
+    /// Debug: LOUPEDECK_ZERO_MASK=1 sends payload bytes unmasked so wire bytes are reproducible.
+    static let zeroMask = ProcessInfo.processInfo.environment["LOUPEDECK_ZERO_MASK"] != nil
     static let closeFrame: [UInt8] = [0x88, 0x80, 0x00, 0x00, 0x00, 0x00]
 
     /// Wrap a payload in a binary WebSocket frame, masked with a random key the way a
@@ -11,7 +15,7 @@ enum Framing {
     /// An all-zero mask sends pixel data through unchanged, and some raw byte patterns
     /// lock up firmware 0.2.5 until it's reconnected.
     static func encode(_ payload: [UInt8], mask: [UInt8]? = nil) -> [UInt8] {
-        let mask = mask ?? (0..<4).map { _ in UInt8.random(in: 0...255) }
+        let mask = mask ?? (zeroMask ? [0, 0, 0, 0] : (0..<4).map { _ in UInt8.random(in: 0...255) })
         var out: [UInt8]
         if payload.count < 126 {
             out = [0x82, 0x80 | UInt8(payload.count)]

@@ -162,6 +162,16 @@ public final class LoupedeckDevice: @unchecked Sendable {
                              rgb565: RGB565.encode(image, width: model.screenWidth, height: model.screenHeight))
     }
 
+    // MARK: - Debugging
+
+    private var lastLargeFrame: [UInt8] = []
+
+    /// Wire bytes of the most recent large (framebuffer) frame, for diagnosing firmware hangs.
+    public func debugLastLargeFrame() -> [UInt8] { queue.sync { lastLargeFrame } }
+
+    /// Write bytes straight to the port, outside any frame.
+    public func debugWriteRaw(_ bytes: [UInt8]) throws { try port.write(bytes) }
+
     // MARK: - Transactions
 
     /// Send a command and wait for the device to acknowledge it. Missing acks are
@@ -190,6 +200,7 @@ public final class LoupedeckDevice: @unchecked Sendable {
                 if Self.trace {
                     FileHandle.standardError.write(Data(("tx " + frame.prefix(20).map { String(format: "%02x", $0) }.joined(separator: " ") + " (\(frame.count) bytes)\n").utf8))
                 }
+                if frame.count > 1024 { lastLargeFrame = frame }
                 writeQueue.async { [self] in
                     do {
                         try port.write(frame)

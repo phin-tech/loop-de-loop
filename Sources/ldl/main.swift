@@ -22,7 +22,7 @@ case "list":
         print("\(d.path)\t\(d.model?.name ?? "unknown") vid=0x\(String(d.vendorID, radix: 16)) pid=0x\(String(d.productID, radix: 16)) serial=\(d.serialNumber ?? "-")")
     }
 
-case "info", "listen", "demo", "bench", "keys", "raw":
+case "info", "listen", "demo", "bench", "keys", "raw", "stress":
     do {
         let device = try await LoupedeckDevice.connect()
         log("Connected: \(device.model.name) at \(device.path)")
@@ -56,7 +56,8 @@ case "info", "listen", "demo", "bench", "keys", "raw":
             _ = try? await device.request(.draw, [0x00, UInt8(ascii: "M")], timeout: 1)
             print(ok ? "ACK" : "HANG")
         }
-        if !["info", "bench", "keys", "raw"].contains(command) {
+        if command == "stress" { try await stress(device, iterations: Int(args.dropFirst().first ?? "") ?? 400) }
+        if !["info", "bench", "keys", "raw", "stress"].contains(command) {
             log("Listening… (Ctrl-C to quit)")
             for await event in device.events { print(event); fflush(stdout) }
         }
@@ -109,6 +110,55 @@ func demo(_ device: LoupedeckDevice) async throws {
                                         green: UInt8(c.components![1] * 255), blue: UInt8(c.components![2] * 255))
     }
     try await device.vibrate(.short)
+}
+
+/// Hammer the device with varied pixel content and check every ack.
+func stress(_ initial: LoupedeckDevice, iterations: Int) async throws {
+    var device = initial
+    var failures = 0, recoveryTimes: [Double] = [], rng = SystemRandomNumberGenerator()
+    let start = Date()
+    for i in 0..<iterations {
+        let key = i % device.model.keyCount
+        let r = device.model.rect(forKey: key)
+        let n = r.width * r.height
+        let px: [UInt8]
+        switch i % 4 {
+        case 0: px = (0..<n * 2).map { _ in UInt8.random(in: 0...255, using: &rng) }            // noise
+        case 1: px = RGB565.encode(width: 90, height: 90) { ctx in                              // text key
+                    ctx.setFillColor(color(hue: CGFloat.random(in: 0...1))); ctx.fill(CGRect(x: 4, y: 4, width: 82, height: 82))
+                    drawText(String(Int.random(in: 0...999)), in: ctx, size: 90) }
+        case 2: px = RGB565.encode(width: 90, height: 90) { ctx in                              // gradient
+                    for y in 0..<90 { ctx.setFillColor(color(hue: CGFloat(y) / 90)); ctx.fill(CGRect(x: 0, y: y, width: 90, height: 1)) } }
+        default: let a = UInt8.random(in: 0...255), b = UInt8.random(in: 0...255)              // 2-byte pattern
+                 px = Array([[a, b]].joined()).count == 2 ? (0..<n).flatMap { _ in [a, b] } : [] }
+        var fb: [UInt8] = [0x00, UInt8(ascii: "M")]
+        for v in [r.x, r.y, r.width, r.height] { fb += [UInt8(v >> 8), UInt8(v & 0xff)] }
+        let ok = (try? await device.request(.framebuffer, fb + px, timeout: 1)) != nil
+        let drew = (try? await device.request(.draw, [0x00, UInt8(ascii: "M")], timeout: 1)) != nil
+        if !ok || !drew {
+            failures += 1
+            log("  iteration \(i) (kind \(i % 4)) failed: framebuffer=\(ok) draw=\(drew)")
+            if let dir = ProcessInfo.processInfo.environment["STRESS_DUMP"] {
+                let frame = device.debugLastLargeFrame()
+                try? Data(frame).write(to: URL(fileURLWithPath: "\(dir)/wedge-\(Int(Date().timeIntervalSince1970))-\(i).bin"))
+            }
+            // Recover by reopening the port and redoing the handshake, then retry the frame.
+            let t = Date()
+            device.close()
+            do {
+                device = try await LoupedeckDevice.connect(path: device.path, model: device.model)
+                let fbRetry = (try? await device.request(.framebuffer, fb + px, timeout: 1)) != nil
+                let drawRetry = (try? await device.request(.draw, [0x00, UInt8(ascii: "M")], timeout: 1)) != nil
+                let retried = fbRetry && drawRetry
+                recoveryTimes.append(Date().timeIntervalSince(t) * 1000)
+                log(String(format: "  reconnected + retried in %.0f ms, retry %@", recoveryTimes.last!, retried ? "ok" : "FAILED"))
+            } catch {
+                log("  reconnect failed: \(error)"); break
+            }
+        }
+    }
+    log(String(format: "stress: %d iterations, %d failures, %.1f s, recoveries (ms): %@", iterations, failures,
+               Date().timeIntervalSince(start), recoveryTimes.map { String(Int($0)) }.joined(separator: ",") as NSString))
 }
 
 /// Time each command type and report whether the device acknowledges it.
