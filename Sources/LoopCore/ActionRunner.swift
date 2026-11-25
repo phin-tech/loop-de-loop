@@ -70,7 +70,7 @@ public final class ActionRunner {
         case .keystroke(let k):
             try Keyboard.post(k)
         case .typeText(let text):
-            Keyboard.type(ctx.fill(text))
+            try Keyboard.type(ctx.fill(text))
         case .openApp(let path):
             let url = URL(fileURLWithPath: ctx.fill(path))
             _ = try await NSWorkspace.shared.openApplication(at: url, configuration: .init())
@@ -97,7 +97,7 @@ public final class ActionRunner {
         case .alfredTrigger(let trigger, let workflow, let argument):
             try await Integrations.alfred(trigger: ctx.fill(trigger), workflow: ctx.fill(workflow), argument: ctx.fill(argument))
         case .media(let key):
-            Keyboard.postMediaKey(key)
+            try Keyboard.postMediaKey(key)
         case .page(let target):
             engine?.goToPage(target)
         case .profile(let name):
@@ -243,9 +243,7 @@ enum Keyboard {
 
     static func post(_ k: KeyStroke) throws {
         guard let code = k.keyCode else { throw ActionError(description: "Unknown key \(k.key)") }
-        guard AXIsProcessTrusted() else {
-            throw ActionError(description: "needs Accessibility permission (System Settings → Privacy & Security → Accessibility)")
-        }
+        try requireAccessibility()
         let src = CGEventSource(stateID: .hidSystemState)
         for down in [true, false] {
             let e = CGEvent(keyboardEventSource: src, virtualKey: CGKeyCode(code), keyDown: down)
@@ -254,7 +252,15 @@ enum Keyboard {
         }
     }
 
-    static func type(_ text: String) {
+    /// Posting events silently does nothing without Accessibility, so fail loudly instead.
+    static func requireAccessibility() throws {
+        guard AXIsProcessTrusted() else {
+            throw ActionError(description: "needs Accessibility permission (System Settings → Privacy & Security → Accessibility)")
+        }
+    }
+
+    static func type(_ text: String) throws {
+        try requireAccessibility()
         let src = CGEventSource(stateID: .hidSystemState)
         for chunk in text.chunked(20) {
             let utf16 = Array(chunk.utf16)
@@ -266,7 +272,8 @@ enum Keyboard {
         }
     }
 
-    static func postMediaKey(_ key: MediaKey) {
+    static func postMediaKey(_ key: MediaKey) throws {
+        try requireAccessibility()
         for down in [true, false] {
             let flags = NSEvent.ModifierFlags(rawValue: down ? 0xa00 : 0xb00)
             let data1 = Int((key.nxKeyType << 16) | ((down ? 0xa : 0xb) << 8))

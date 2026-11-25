@@ -195,7 +195,8 @@ public final class Engine: EngineActions {
     }
 
     private func frontmostAppChanged(_ bundleID: String?) {
-        guard config.settings.autoSwitchProfiles, let bundleID else { return }
+        // Ignore ourselves: opening the editor must not switch away from the profile being edited.
+        guard config.settings.autoSwitchProfiles, let bundleID, bundleID != Bundle.main.bundleIdentifier else { return }
         if let p = config.profiles.first(where: { $0.appBundleIDs.contains(bundleID) }) {
             setProfile(p.id)
         } else if config.profiles.contains(where: { !$0.appBundleIDs.isEmpty }) {
