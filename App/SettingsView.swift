@@ -7,6 +7,7 @@ struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var loginItem = LoginItem.isEnabled
     @State private var cliMessage: String?
+    @AppStorage(UpdateChecker.betaKey) private var betaUpdates = UpdateChecker.runningBeta
 
     private var settings: Binding<LoopCore.Settings> {
         Binding(get: { engine.config.settings }, set: { v in engine.edit { $0.settings = v } })
@@ -34,6 +35,19 @@ struct SettingsView: View {
                 Section("BetterTouchTool") {
                     TextField("Shared secret (only if set in BTT → Advanced → Scripting)",
                               text: optionalText(settings.bttSharedSecret))
+                }
+
+                Section {
+                    Toggle("Check for updates automatically", isOn: Binding(
+                        get: { UpdateChecker.shared.automaticChecks },
+                        set: { UpdateChecker.shared.automaticChecks = $0 }))
+                    Toggle("Get beta versions", isOn: $betaUpdates)
+                    Button("Check Now") { UpdateChecker.shared.checkForUpdates() }
+                } header: {
+                    Text("Updates")
+                } footer: {
+                    Text("Once a day, LoopDeLoop asks GitHub for a newer release, and offers to install it and relaunch.")
+                        .foregroundStyle(.secondary)
                 }
 
                 Section("System") {
@@ -69,7 +83,7 @@ struct SettingsView: View {
             }
             .padding()
         }
-        .frame(width: 560, height: 560)
+        .frame(width: 560, height: 680)
         .alert("Command-line tool", isPresented: Binding(get: { cliMessage != nil }, set: { if !$0 { cliMessage = nil } })) {
             Button("OK") {}
         } message: { Text(cliMessage ?? "") }

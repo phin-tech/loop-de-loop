@@ -41,3 +41,11 @@ ldl *args:
 # Remove build artifacts and the generated Xcode project
 clean:
     rm -rf .build build DerivedData Generated LoopDeLoop.xcodeproj
+
+# The release recipes (release-check, doctor, bump, ship and the rest): app-release, in release.just, which
+# apple-template keeps up to date
+import 'release.just'
+
+# Make the app icon set from square artwork (art/icon-raw.png by default)
+icon src="art/icon-raw.png":
+    swift scripts/make-icon.swift {{src}}

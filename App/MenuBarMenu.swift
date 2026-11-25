@@ -46,6 +46,7 @@ struct MenuBarMenu: View {
         }
 
         Divider()
+        Button("Check for Updates…") { UpdateChecker.shared.checkForUpdates() }
         Button("Quit LoopDeLoop") { NSApp.terminate(nil) }
             .keyboardShortcut("q")
     }

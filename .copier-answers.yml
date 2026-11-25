@@ -1,0 +1,25 @@
+# Changes here will be overwritten by Copier; NEVER EDIT MANUALLY
+_commit: v0.4.1-2-g9877edf
+_src_path: .
+app_name: LoopDeLoop
+app_slug: loopdeloop
+app_store: false
+build_settings: ''
+bundle_id: tech.phin.LoopDeLoop
+bundle_prefix: tech.phin
+cli_binary: loopctl
+description: 'A menu-bar app for the Loupedeck Live: keys, knobs, buttons and your
+    automations'
+devices: false
+downloads: true
+github_owner: phin-tech
+github_releases: true
+github_repo: phin-tech/loop-de-loop
+homebrew_tap: phin-tech/homebrew-tap
+install_on_macs: false
+macos_min: '14.0'
+op_item: op://Development/replaced-by-infisical
+scheme: LoopDeLoop
+scope: release
+several_apps: false
+team_id: J35P7AJDN7
