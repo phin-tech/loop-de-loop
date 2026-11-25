@@ -66,10 +66,13 @@ struct KeyInspector: View {
         GroupBox("Graphic") {
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
-                    TextField("SF Symbol name (e.g. speaker.wave.2.fill)", text: optionalText(appearance.symbol))
-                        .textFieldStyle(.roundedBorder)
+                    SymbolPickerButton(symbol: appearance.symbol,
+                                       color: appearance.wrappedValue.symbolColor ?? appearance.wrappedValue.titleColor ?? .white)
                     OptionalColorPicker(label: "", color: appearance.symbolColor, fallback: .white)
                 }
+                TextField("…or type a symbol name", text: optionalText(appearance.symbol))
+                    .textFieldStyle(.roundedBorder)
+                    .font(.caption.monospaced())
                 if let symbol = appearance.wrappedValue.symbol, NSImage(systemSymbolName: symbol, accessibilityDescription: nil) == nil {
                     Text("No SF Symbol named “\(symbol)”").font(.caption).foregroundStyle(.red)
                 }

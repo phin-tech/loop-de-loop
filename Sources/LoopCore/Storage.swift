@@ -60,6 +60,17 @@ public final class ImageStore {
         return img
     }
 
+    public func data(named name: String) -> Data? {
+        try? Data(contentsOf: directory.appendingPathComponent(name))
+    }
+
+    /// Write image data under an exact name (used by import).
+    public func store(_ data: Data, named name: String) throws {
+        let dest = directory.appendingPathComponent(name)
+        if !FileManager.default.fileExists(atPath: dest.path) { try data.write(to: dest) }
+        cache[name] = nil
+    }
+
     /// Copy an image file in; returns the stored name. Same content → same name.
     public func importImage(from url: URL) throws -> String {
         let data = try Data(contentsOf: url)

@@ -20,6 +20,10 @@ loopctl — control LoopDeLoop (the Loupedeck Live manager)
   loopctl vibrate [pattern]
   loopctl press <key:N|button:N|knob:tl>  simulate a press
   loopctl turn <knob> <delta>            simulate a knob turn
+  loopctl export <file> [--profile NAME | --all]   current profile, a named one, or a full backup
+  loopctl import <file>                  add the file's profiles alongside yours
+  loopctl restore <file>                 replace everything (your setup is backed up first)
+  loopctl backup                         full backup to Application Support/LoopDeLoop/Backups
   loopctl save                           write the current config to config.json
   loopctl reload                         re-read config.json
   loopctl serve                          run the engine without the app (debugging)
@@ -43,9 +47,14 @@ if arguments[0] == "serve" {
     exit(0)
 }
 
-guard let request = ControlRequest(arguments: arguments) else {
+guard var request = ControlRequest(arguments: arguments) else {
     print(usage)
     exit(2)
+}
+// The app runs in another directory, so send file paths absolute.
+if ["export", "import", "restore"].contains(request.command), let path = request.positional(0) {
+    let cwd = URL(fileURLWithPath: FileManager.default.currentDirectoryPath, isDirectory: true)
+    request.args["0"] = URL(fileURLWithPath: (path as NSString).expandingTildeInPath, relativeTo: cwd).standardizedFileURL.path
 }
 do {
     let response = try ControlClient.send(request)

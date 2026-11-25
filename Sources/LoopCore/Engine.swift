@@ -23,7 +23,9 @@ public final class Engine: EngineActions {
     public private(set) var pressed: Set<String> = []
     public private(set) var recoveries = 0
 
-    public let images = ImageStore()
+    public let images: ImageStore
+    /// Where the config is saved (tests point this at a temporary folder).
+    @ObservationIgnored public let configURL: URL
     @ObservationIgnored private let runner = ActionRunner()
     @ObservationIgnored private var device: LoupedeckDevice?
     @ObservationIgnored private var server: ControlServer?
@@ -45,13 +47,15 @@ public final class Engine: EngineActions {
     @ObservationIgnored private var dirtyKeys: Set<Int> = []
     @ObservationIgnored private var drawing = false
 
-    public init(config: Config? = nil) {
+    public init(config: Config? = nil, configURL: URL = Paths.configFile, images: ImageStore? = nil) {
+        self.configURL = configURL
+        self.images = images ?? ImageStore()
         let loaded: Config
         var loadError: String?
         if let config {
             loaded = config
         } else {
-            do { loaded = try ConfigStore.load() } catch {
+            do { loaded = try ConfigStore.load(from: configURL) } catch {
                 loaded = .starter()
                 loadError = "Couldn't read config.json (\(error)); using the starter layout."
             }
@@ -156,7 +160,7 @@ public final class Engine: EngineActions {
     }
 
     private func persist() {
-        do { try ConfigStore.save(config) } catch { report("Save failed: \(error)") }
+        do { try ConfigStore.save(config, to: configURL) } catch { report("Save failed: \(error)") }
     }
 
     private func report(_ message: String) {
@@ -507,14 +511,52 @@ public final class Engine: EngineActions {
             handle(.rotated(knob, delta: d))
             return .ok()
 
+        case "export":
+            guard let path = req.positional(0) else {
+                return .error("usage: export <file> [--profile NAME | --all]   (--all includes settings: a full backup)")
+            }
+            let url = URL(fileURLWithPath: path)
+            do {
+                if let name = a["profile"] {
+                    guard let p = config.profile(named: name) else { return .error("no profile named \(name)") }
+                    try export(to: url, profileIDs: [p.id])
+                } else if a["all"] == "true" {
+                    try export(to: url, fullBackup: true)
+                } else {
+                    try export(to: url, profileIDs: [profileID])
+                }
+                return .ok("exported to \(url.path)")
+            } catch {
+                return .error("export failed: \(error.localizedDescription)")
+            }
+
+        case "import", "restore":
+            guard let path = req.positional(0) else { return .error("usage: \(req.command) <file>") }
+            do {
+                let file = try ExportFile.decode(Data(contentsOf: URL(fileURLWithPath: path)))
+                if req.command == "import" {
+                    let names = try importProfiles(from: file)
+                    return .ok("imported: \(names.joined(separator: ", "))")
+                }
+                let backup = try restore(from: file)
+                return .ok("restored \(file.profiles.count) profile(s); previous setup saved to \(backup.path)")
+            } catch {
+                return .error("\(req.command) failed: \(error)")
+            }
+
+        case "backup":
+            do { return .ok("backed up to \(try backupCurrent().path)") } catch {
+                return .error("backup failed: \(error.localizedDescription)")
+            }
+
         case "save":
             persist()
-            return .ok("saved \(Paths.configFile.path)")
+            return .ok("saved \(configURL.path)")
 
         case "reload":
             do {
-                update(try ConfigStore.load(), save: false)
-                return .ok("reloaded \(Paths.configFile.path)")
+                update(try ConfigStore.load(from: configURL), save: false)
+                return .ok("reloaded \(configURL.path)")
             } catch {
                 return .error("reload failed: \(error)")
             }

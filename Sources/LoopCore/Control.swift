@@ -17,6 +17,9 @@ public struct ControlRequest: Codable, Sendable, Equatable {
 
     public func positional(_ i: Int) -> String? { args[String(i)] }
 
+    /// Options that never take a value, so `--all file.json` keeps file.json positional.
+    public static let booleanFlags: Set<String> = ["all", "persist"]
+
     /// Parse CLI-style arguments: `cmd pos0 pos1 --key value --flag`.
     public init?(arguments: [String]) {
         guard let command = arguments.first else { return nil }
@@ -32,6 +35,8 @@ public struct ControlRequest: Codable, Sendable, Equatable {
                 if let eq = body.firstIndex(of: "=") {
                     args[String(body[..<eq])] = String(body[body.index(after: eq)...])
                     pendingKey = nil
+                } else if Self.booleanFlags.contains(body) {
+                    args[body] = "true"
                 } else {
                     pendingKey = body
                 }

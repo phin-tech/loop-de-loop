@@ -21,6 +21,7 @@ struct LoopDeLoopApp: App {
         }
         .defaultSize(width: 1180, height: 760)
         .windowResizability(.contentMinSize)
+        .commands { ExchangeCommands(engine: delegate.engine) }
     }
 }
 

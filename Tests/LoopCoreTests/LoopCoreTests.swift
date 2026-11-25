@@ -12,6 +12,15 @@ import Testing
         #expect(r?.args["persist"] == "true")
     }
 
+    @Test func booleanFlagsDoNotSwallowPositionals() {
+        let r = ControlRequest(arguments: ["export", "--all", "full.json"])
+        #expect(r?.args["all"] == "true")
+        #expect(r?.positional(0) == "full.json")
+        let k = ControlRequest(arguments: ["set-key", "--persist", "3", "--title", "x"])
+        #expect(k?.positional(0) == "3")
+        #expect(k?.args["persist"] == "true")
+    }
+
     @Test func parsesURL() {
         let r = ControlRequest(url: URL(string: "loopdeloop://set-key/3?title=Hi%20there&bg=ff0000")!)
         #expect(r?.command == "set-key")
@@ -64,5 +73,35 @@ import Testing
         #expect(RGB(hex: "#ff8000") == RGB(255, 128, 0))
         #expect(RGB(hex: "00ff00")?.hex == "#00FF00")
         #expect(RGB(hex: "nope") == nil)
+    }
+}
+
+@Suite struct ExportTests {
+    @MainActor @Test func exportImportRoundTripWithImagesAndRenaming() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("ldl-test-\(UUID())")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+
+        // Engine with one profile whose key uses an image.
+        var config = Config.starter()
+        config.profiles[0].pages[0].setKey(3, KeyConfig(appearance: Appearance(image: "abc.png")))
+        let engine = Engine(config: config, configURL: dir.appendingPathComponent("config.json"),
+                            images: ImageStore(directory: dir))
+        try engine.images.store(Data([1, 2, 3]), named: "abc.png")
+
+        let file = engine.makeExport(profileIDs: [engine.profileID])
+        #expect(file.images["abc.png"] == Data([1, 2, 3]))
+        #expect(!file.isFullBackup)
+
+        let decoded = try ExportFile.decode(try file.encoded())
+        let names = try engine.importProfiles(from: decoded)
+        #expect(names == ["Default (2)"])
+        #expect(engine.config.profiles.count == 2)
+        #expect(engine.config.profiles[0].id != engine.config.profiles[1].id)
+        #expect(engine.config.profiles[1].pages[0].key(3).appearance.image == "abc.png")
+    }
+
+    @Test func rejectsForeignJSON() {
+        #expect(throws: (any Error).self) { try ExportFile.decode(Data(#"{"hello": 1}"#.utf8)) }
     }
 }

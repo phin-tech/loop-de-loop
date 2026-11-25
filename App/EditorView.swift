@@ -65,6 +65,11 @@ struct EditorToolbar: View {
                 Button("Rename Profile…") { newName = engine.profile.name; renaming = .profile }
                 Button("Switch Automatically for Apps…") { showApps = true }
                 Divider()
+                Button("Export This Profile…") { ExchangeUI.exportProfile(engine) }
+                Button("Export Everything…") { ExchangeUI.exportAll(engine) }
+                Button("Import Profiles…") { ExchangeUI.importProfiles(engine) }
+                Button("Restore from Backup…") { ExchangeUI.restore(engine) }
+                Divider()
                 Button("Make Default Profile") { engine.edit { $0.defaultProfileID = engine.profileID } }
                     .disabled(engine.config.defaultProfileID == engine.profileID)
                 Button("Delete Profile", role: .destructive) { deleteProfile() }
