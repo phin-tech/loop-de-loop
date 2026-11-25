@@ -7,8 +7,8 @@ options:
 settings:
   base:
     # The release version. Project-wide, so the embedded CLI carries the app's version and build number.
-    MARKETING_VERSION: "0.0.0"
-    CURRENT_PROJECT_VERSION: "1"
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "2"
 packages:
   LoopDeLoop:
     path: .
