@@ -1,0 +1,76 @@
+name: LoopDeLoop
+options:
+  bundleIdPrefix: tech.phin
+  xcodeVersion: "27.2"
+  deploymentTarget:
+    macOS: "14.0"
+settings:
+  base:
+    # The release version. Project-wide, so the embedded CLI carries the app's version and build number.
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+packages:
+  LoopDeLoop:
+    path: .
+targets:
+  LoopDeLoop:
+    type: application
+    platform: macOS
+    sources: [App]
+    scheme: {}
+    configFiles:
+      Debug: Signing.xcconfig
+      Release: Signing.xcconfig
+    dependencies:
+      - package: LoopDeLoop
+        product: LoopCore
+      - target: LoopDeLoopCLI
+        embed: true
+        codeSign: true
+        copy:
+          destination: wrapper
+          subpath: Contents/Helpers
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: tech.phin.LoopDeLoop
+        SWIFT_VERSION: "6.0"
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: LoopDeLoop
+        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.utilities
+        ENABLE_HARDENED_RUNTIME: YES
+        DEAD_CODE_STRIPPING: YES
+    # xcodegen writes these from the properties below; Generated/ is gitignored.
+    entitlements:
+      path: Generated/LoopDeLoop.entitlements
+      properties:
+        # Hardened runtime blocks Apple Events without this; needed for BTT, Keyboard Maestro and Alfred actions.
+        com.apple.security.automation.apple-events: true
+    info:
+      path: Generated/Info.plist
+      properties:
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        # Menu-bar app: no Dock icon unless the editor window is open (App/LoopDeLoopApp.swift switches it).
+        LSUIElement: true
+        NSAppleEventsUsageDescription: LoopDeLoop sends commands to BetterTouchTool, Keyboard Maestro, Alfred and other apps when you press a control on your Loupedeck.
+        CFBundleURLTypes:
+          - CFBundleURLName: tech.phin.LoopDeLoop
+            CFBundleURLSchemes: [loopdeloop]
+  # The `loopctl` command, embedded in the app at Contents/Helpers.
+  LoopDeLoopCLI:
+    type: tool
+    platform: macOS
+    sources: [Sources/loopctl]
+    configFiles:
+      Debug: Signing.xcconfig
+      Release: Signing.xcconfig
+    dependencies:
+      - package: LoopDeLoop
+        product: LoopCore
+    settings:
+      base:
+        PRODUCT_NAME: loopctl
+        SWIFT_VERSION: "6.0"
+        ENABLE_HARDENED_RUNTIME: YES
+        DEAD_CODE_STRIPPING: YES
+        SKIP_INSTALL: YES

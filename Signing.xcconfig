@@ -1,0 +1,13 @@
+// Signing for LoopDeLoop and everything it embeds. Without a local override, builds are signed to run locally
+// (ad-hoc). To sign with your team, create Signing.local.xcconfig (gitignored) next to this file:
+//
+//   DEVELOPMENT_TEAM = <team id>
+//   CODE_SIGN_IDENTITY = Apple Development
+//
+// LoopDeLoop needs Accessibility (keystrokes) and Automation (BTT, Keyboard Maestro, Alfred) permissions. An ad-hoc
+// signature is a hash of that exact build, so macOS forgets those grants on every rebuild; a team identity keeps them.
+CODE_SIGN_STYLE = Automatic
+CODE_SIGN_IDENTITY = -
+DEVELOPMENT_TEAM =
+
+#include? "Signing.local.xcconfig"

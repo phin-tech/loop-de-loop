@@ -186,7 +186,7 @@ public final class Engine: EngineActions {
         setProfile(p.id)
     }
 
-    private func setProfile(_ id: UUID) {
+    public func setProfile(_ id: UUID) {
         guard id != profileID else { return }
         profileID = id
         pageIndex = 0
@@ -523,7 +523,38 @@ public final class Engine: EngineActions {
         }
     }
 
-    private var profileIndex: Int { config.profiles.firstIndex { $0.id == profileID } ?? 0 }
+    public var profileIndex: Int { config.profiles.firstIndex { $0.id == profileID } ?? 0 }
+
+    // MARK: - Editing helpers (used by the editor UI)
+
+    /// Mutate the config, save it and redraw.
+    public func edit(_ body: (inout Config) -> Void) {
+        var c = config
+        body(&c)
+        update(c)
+    }
+
+    /// Mutate the page currently showing.
+    public func editPage(_ body: (inout Page) -> Void) {
+        let (pi, gi) = (profileIndex, min(pageIndex, profile.pages.count - 1))
+        edit { body(&$0.profiles[pi].pages[gi]) }
+    }
+
+    public func editProfile(_ body: (inout Profile) -> Void) {
+        let pi = profileIndex
+        edit { body(&$0.profiles[pi]) }
+    }
+
+    public var isConnected: Bool { if case .connected = status { true } else { false } }
+
+    public func clearError() { lastError = nil }
+
+    /// Handle a loopdeloop:// URL.
+    @discardableResult
+    public func handle(url: URL) -> ControlResponse {
+        guard let request = ControlRequest(url: url) else { return .error("not a loopdeloop:// URL") }
+        return handle(request)
+    }
 }
 
 extension Knob {

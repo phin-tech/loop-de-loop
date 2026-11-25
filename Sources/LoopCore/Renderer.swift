@@ -36,10 +36,11 @@ public enum Renderer {
     }
 
     /// Render a key to a CGImage (for the editor preview).
-    public static func keyImage(_ appearance: Appearance, size: Int, images: ImageStore) -> CGImage? {
-        guard let ctx = CGContext(data: nil, width: size, height: size, bitsPerComponent: 8, bytesPerRow: 0,
+    public static func keyImage(_ appearance: Appearance, size: Int, scale: Int = 2, images: ImageStore) -> CGImage? {
+        guard let ctx = CGContext(data: nil, width: size * scale, height: size * scale, bitsPerComponent: 8, bytesPerRow: 0,
                                   space: CGColorSpaceCreateDeviceRGB(),
                                   bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
+        ctx.scaleBy(x: CGFloat(scale), y: CGFloat(scale))
         drawKey(appearance, in: CGRect(x: 0, y: 0, width: size, height: size), ctx: ctx, images: images)
         return ctx.makeImage()
     }
