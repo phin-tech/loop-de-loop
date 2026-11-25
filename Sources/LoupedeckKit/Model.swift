@@ -86,10 +86,13 @@ public enum TouchTarget: Hashable, Sendable {
 }
 
 public struct Touch: Hashable, Sendable {
+    /// Finger slot (0, 1, 2…), stable for the life of a touch.
     public let id: UInt8
     public let x: Int
     public let y: Int
     public let target: TouchTarget
+    /// Varies during a touch (likely pressure or contact size). Not an identifier.
+    public let pressure: UInt8
 }
 
 public enum LoupedeckEvent: Sendable {

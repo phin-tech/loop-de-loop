@@ -301,7 +301,9 @@ public final class LoupedeckDevice: @unchecked Sendable {
         guard data.count >= 6 else { return nil }
         let x = Int(data[1]) << 8 | Int(data[2])
         let y = Int(data[3]) << 8 | Int(data[4])
-        return Touch(id: data[5], x: x, y: y, target: model.target(x: x, y: y))
+        // foxxyz uses byte 5 as the touch ID, but on firmware 0.2.5 it drifts mid-touch;
+        // byte 0 is the stable finger slot.
+        return Touch(id: data[0], x: x, y: y, target: model.target(x: x, y: y), pressure: data[5])
     }
 
     private func teardown() {
